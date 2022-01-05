@@ -3,7 +3,6 @@ from sklearn.svm import LinearSVC
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn import preprocessing
 from reshaper import Reshaper
 
 DATA_RANGE = 50             # 平均値をとるデータの個数
@@ -45,8 +44,8 @@ def main():
         tester_name = f.read().splitlines() # 改行文字を消去
 
     reshaper = Reshaper(DATA_RANGE, NO_REACTION_RSSI,
-                        CSV_PATH, tester_name, CLASS_NUM, train_count)
-    rssis_train, train_label, rssis_test, test_label = reshaper.parse_avged_rssi_and_cls()
+                        CSV_PATH, tester_name, CLASS_NUM)
+    rssis_train, train_label, rssis_test, test_label = reshaper.parse_avged_rssi_and_cls(train_count)
     
     # 手法の選択(コマンドライン引数によって決定)
     if method == 'svc':
