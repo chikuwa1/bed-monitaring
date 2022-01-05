@@ -13,7 +13,7 @@ NEIGHBORS = 3               # K近傍法のK値
 CLASS_NUM = 7               # 姿勢クラス数
 TESTER_NUM = 11             # 被験者の人数
 
-ARGS_ERROR = f'''usage: python clustering.py <clustering method> <num of tester(int:1~{TESTER_NUM-1})>
+ARGS_ERROR = f'''usage: python clustering.py <clustering method> <count of train(int:1~{TESTER_NUM-1})>
 
 available clustering method:
     svc     Linear SVC(SVM Classification)
@@ -33,11 +33,11 @@ def main():
         print(ARGS_ERROR)
         exit()
     try:
-        tester_num = int(sys.argv[2])
+        train_count = int(sys.argv[2])
     except ValueError:
         print(ARGS_ERROR)
         exit()
-    if not 1 <= tester_num <= (TESTER_NUM - 1):
+    if not 1 <= train_count <= (TESTER_NUM - 1):
         print(ARGS_ERROR)
         exit()
 
@@ -45,9 +45,8 @@ def main():
         tester_name = f.read().splitlines() # 改行文字を消去
 
     reshaper = Reshaper(DATA_RANGE, NO_REACTION_RSSI,
-                        CSV_PATH, tester_name, CLASS_NUM)
-    avged_rssis, rssi_classes = reshaper.parse_avged_rssi_and_cls()
-    rssis_train, train_label, rssis_test, test_label = make_learnable_data(avged_rssis, rssi_classes, tester_num)
+                        CSV_PATH, tester_name, CLASS_NUM, train_count)
+    rssis_train, train_label, rssis_test, test_label = reshaper.parse_avged_rssi_and_cls()
     
     # 手法の選択(コマンドライン引数によって決定)
     if method == 'svc':
@@ -76,38 +75,6 @@ def main():
     # 正答率計算
     ac_score = accuracy_score(test_label, pre)
     print("正答率 =", ac_score)
-
-
-def make_learnable_data(avged_rssis, rssi_classes, tester_num):
-    # 標準化
-    rssi_all = []
-    for rssi in avged_rssis:
-        rssi_all += rssi
-    sc = preprocessing.StandardScaler()
-    sc.fit(rssi_all)
-    standarded_rssi = sc.transform(rssi_all)
-    
-    def count_data_num(d, n):
-        sum = 0
-        for i in range(n):
-            sum += len(d[i])
-        return sum
-
-    def link_list(li):
-        linked_list = []
-        for l in li:
-            linked_list += l
-        return linked_list
-
-    avged_rssis_num = count_data_num(avged_rssis, tester_num)
-    rssis_train = standarded_rssi[:avged_rssis_num]
-    train_label = link_list(rssi_classes[:tester_num])
-    rssis_test = standarded_rssi[avged_rssis_num:]
-    test_label = []
-    for cls in rssi_classes[tester_num:]:
-        test_label += cls
-        
-    return rssis_train, train_label, rssis_test, test_label
 
 if __name__ == '__main__':
     main()

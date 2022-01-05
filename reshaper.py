@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn import preprocessing
 
 class Reshaper:
     """ベッドデータの機械学習のためのデータ整形クラス．
@@ -16,12 +17,13 @@ class Reshaper:
     """
 
     def __init__(self, data_num_perblock, no_reaction_rssi,
-                 csv_path, tester, class_num):
+                 csv_path, tester_name, class_num, train_count):
         self.data_num_perblock = data_num_perblock
         self.no_reaction_rssi = no_reaction_rssi
         self.csv_path = csv_path
-        self.tester_name = tester
+        self.tester_name = tester_name
         self.class_num = class_num
+        self.train_count = train_count
         self.tag_name = ('E280116060000204AC6AD0EC',
                          'E280116060000204AC6AD0E6',
                          'E280116060000204AC6AD1FE',
@@ -44,8 +46,15 @@ class Reshaper:
         rssis = self.__get_rssis(bed_data)
         avged_rssis, rssi_classes = self.__take_block_rssi_avg(rssis)
         print('\033[32m'+'Done'+'\033[0m')
+        
+        standarded_rssis = self.__standardize(avged_rssis)
 
-        return avged_rssis, rssi_classes
+        train_rssis, train_label, test_rssis, test_label = self.__divide_data_units_tester(avged_rssis,
+                                                                                           standarded_rssis,
+                                                                                           rssi_classes)
+
+        print(len(train_rssis),len(train_label),len(test_rssis),len(test_label))
+        return train_rssis, train_label, test_rssis, test_label
 
     def __load_csv(self):
         """CSVファイルの読み込み，
@@ -171,3 +180,33 @@ class Reshaper:
                     rssi_classes[tester].append(cls_idx)
 
         return avged_rssis, rssi_classes
+    
+    def __standardize(self, rssis):
+        rssi_all = []
+        for rssi in rssis:
+            rssi_all += rssi
+        sc = preprocessing.StandardScaler()
+        sc.fit(rssi_all)
+        standarded_rssi = sc.transform(rssi_all)
+        
+        return standarded_rssi
+    
+    def __divide_data_units_tester(self, avged_rssis, standarded_rssis, rssi_classes):
+        avged_rssis_num = 0
+        for rssi in avged_rssis[:self.train_count]:
+            avged_rssis_num += len(rssi)
+            
+        print(avged_rssis_num)
+        train_rssis = standarded_rssis[:avged_rssis_num]
+        
+        train_label = []
+        for rssi in rssi_classes[:self.train_count]:
+            train_label += rssi
+            
+        test_rssis = standarded_rssis[avged_rssis_num:]
+            
+        test_label = []
+        for cls in rssi_classes[self.train_count:]:
+            test_label += cls
+            
+        return train_rssis, train_label, test_rssis, test_label
