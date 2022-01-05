@@ -16,22 +16,16 @@ class Reshaper:
     tag_name          (set[str]) : センサータグの名前
     """
 
-    def __init__(self, data_num_perblock, no_reaction_rssi,
-                 csv_path, tester_name, class_num, train_count):
+    def __init__(self, data_num_perblock, no_reaction_rssi, csv_path,
+                 tester_name, class_num):
         self.data_num_perblock = data_num_perblock
         self.no_reaction_rssi = no_reaction_rssi
         self.csv_path = csv_path
         self.tester_name = tester_name
         self.class_num = class_num
-        self.train_count = train_count
-        self.tag_name = ('E280116060000204AC6AD0EC',
-                         'E280116060000204AC6AD0E6',
-                         'E280116060000204AC6AD1FE',
-                         'E280116060000204AC6AD1FD',
-                         'E280116060000204AC6AC8F0',
-                         'E280116060000204AC6AD1FC')
+        self.tag_num = 6
 
-    def parse_avged_rssi_and_cls(self):
+    def parse_avged_rssi_and_cls(self, train_count):
         """CSVデータから平均化したRSSI値とそれに対応する姿勢クラスを得る
 
         Returns:
@@ -51,9 +45,9 @@ class Reshaper:
 
         train_rssis, train_label, test_rssis, test_label = self.__divide_data_units_tester(avged_rssis,
                                                                                            standarded_rssis,
-                                                                                           rssi_classes)
+                                                                                           rssi_classes,
+                                                                                           train_count)
 
-        print(len(train_rssis),len(train_label),len(test_rssis),len(test_label))
         return train_rssis, train_label, test_rssis, test_label
 
     def __load_csv(self):
@@ -111,16 +105,21 @@ class Reshaper:
         rssis = [[[] for _ in range(self.class_num)]
                  for _ in range(tester_num)]
 
-        tag_dict = {self.tag_name[0]: 0,
-                    self.tag_name[1]: 1,
-                    self.tag_name[2]: 2,
-                    self.tag_name[3]: 3,
-                    self.tag_name[4]: 4,
-                    self.tag_name[5]: 5}
+        tag_name = ('E280116060000204AC6AD0EC',
+                    'E280116060000204AC6AD0E6',
+                    'E280116060000204AC6AD1FE',
+                    'E280116060000204AC6AD1FD',
+                    'E280116060000204AC6AC8F0',
+                    'E280116060000204AC6AD1FC')
+        tag_name_dict = {tag_name[0]: 0,
+                         tag_name[1]: 1,
+                         tag_name[2]: 2,
+                         tag_name[3]: 3,
+                         tag_name[4]: 4,
+                         tag_name[5]: 5}
 
         def init_rssi():
-            sensor_num = len(self.tag_name)
-            return [self.no_reaction_rssi for _ in range(sensor_num)]
+            return [self.no_reaction_rssi for _ in range(self.tag_num)]
 
         for tester, d in enumerate(bed_data):
             for cls_num, data in enumerate(d):
@@ -130,8 +129,8 @@ class Reshaper:
                     if time != data['time'][i]:
                         rssis[tester][cls_num].append(rssi)
                         rssi = init_rssi()
-                    tag_name = data['tag'][i]
-                    sensor_idx = tag_dict[tag_name]
+                    tag = data['tag'][i]
+                    sensor_idx = tag_name_dict[tag]
                     rssi[sensor_idx] = float(data['rssi'][i])
                 rssis[tester][cls_num].append(rssi)
 
@@ -148,7 +147,6 @@ class Reshaper:
         """
 
         tester_num = len(self.tester_name)
-        sensor_num = len(self.tag_name)
         avged_rssis = [[] for _ in range(tester_num)]
         rssi_classes = [[] for _ in range(tester_num)]
 
@@ -158,9 +156,9 @@ class Reshaper:
         for tester, d in enumerate(rssis):
             for cls_idx, data in enumerate(d):
                 # 先頭の平均値データの作成
-                rssi_block = [[] for _ in range(sensor_num)]
+                rssi_block = [[] for _ in range(self.tag_num)]
                 avged_rssi = []
-                for i in range(sensor_num):
+                for i in range(self.tag_num):
                     for j in range(self.data_num_perblock):
                         rssi_block[i].append(data[j][i])
                     rssi_avg = avg(rssi_block[i])
@@ -171,7 +169,7 @@ class Reshaper:
                 # それ以降の平均値データの作成
                 for rssi in data[self.data_num_perblock:]:
                     avged_rssi = []
-                    for i in range(sensor_num):
+                    for i in range(self.tag_num):
                         rssi_block[i].pop(0)
                         rssi_block[i].append(rssi[i])
                         rssi_avg = avg(rssi_block[i])
@@ -191,22 +189,21 @@ class Reshaper:
         
         return standarded_rssi
     
-    def __divide_data_units_tester(self, avged_rssis, standarded_rssis, rssi_classes):
+    def __divide_data_units_tester(self, avged_rssis, standarded_rssis, rssi_classes, train_count):
         avged_rssis_num = 0
-        for rssi in avged_rssis[:self.train_count]:
+        for rssi in avged_rssis[:train_count]:
             avged_rssis_num += len(rssi)
-            
-        print(avged_rssis_num)
+    
         train_rssis = standarded_rssis[:avged_rssis_num]
         
         train_label = []
-        for rssi in rssi_classes[:self.train_count]:
+        for rssi in rssi_classes[:train_count]:
             train_label += rssi
             
         test_rssis = standarded_rssis[avged_rssis_num:]
             
         test_label = []
-        for cls in rssi_classes[self.train_count:]:
+        for cls in rssi_classes[train_count:]:
             test_label += cls
             
         return train_rssis, train_label, test_rssis, test_label
