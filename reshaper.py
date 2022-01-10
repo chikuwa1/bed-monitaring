@@ -1,18 +1,19 @@
 import pandas as pd
+import numpy as np
 from sklearn import preprocessing
 
 class Reshaper:
     """ベッドデータの機械学習のためのデータ整形クラス．
 
     このクラスの目的は，ベッドデータの機械学習の精度向上のためある一定のデータ区間の
-    RSSI値の平均値を取得してそのデータに対応するクラスの両方を得ることである．
+    RSSI値の平均値を取得してそのデータに対応する姿勢クラスの両方を得ることである．
 
     Attributes:
     data_num_perblock (int)      : RSSI値の平均を取るデータ数
     no_reaction_rssi  (float)    : センサー無反応の時のRSSIの代替値
     csv_path          (str)      : CSVファイルのパス
     tester_name       (list)     : 被験者の名前
-    class_num         (int)      : クラス(分類する姿勢)数
+    class_num         (int)      : 姿勢クラス数
     tag_name          (set[str]) : センサータグの名前
     """
 
@@ -25,12 +26,12 @@ class Reshaper:
         self.class_num = class_num
         self.tag_num = 6
 
-    def parse_avged_rssi_and_cls(self, train_count):
+    def get_learnable_multi_train_data(self, train_count):
         """CSVデータから平均化したRSSI値とそれに対応する姿勢クラスを得る
 
         Returns:
             list: 平均化したRSSI値
-            list: avged_rssisに対応するクラス
+            list: avged_rssisに対応する姿勢クラス
         """
         print('File loading...          ', end='')
         bed_data = self.__load_csv()
@@ -38,16 +39,43 @@ class Reshaper:
 
         print('Data reshaping...        ', end='')
         rssis = self.__get_rssis(bed_data)
-        avged_rssis, rssi_classes = self.__take_block_rssi_avg(rssis)
+        avged_rssis, posture_classes = self.__take_block_rssi_avg(rssis)
         print('\033[32m'+'Done'+'\033[0m')
         
         standarded_rssis = self.__standardize(avged_rssis)
 
         train_rssis, train_label, test_rssis, test_label = self.__divide_data_units_tester(avged_rssis,
                                                                                            standarded_rssis,
-                                                                                           rssi_classes,
+                                                                                           posture_classes,
                                                                                            train_count)
 
+        return train_rssis, train_label, test_rssis, test_label
+
+    def get_learnable_single_train_data(self, train_rate):
+        print('File loading...          ', end='')
+        bed_data = self.__load_csv()
+        print('\033[32m'+'Done'+'\033[0m')
+
+        print('Data reshaping...        ', end='')
+        rssis = self.__get_rssis(bed_data)
+        avged_rssis, posture_classes = self.__take_block_rssi_avg(rssis)
+        print('\033[32m'+'Done'+'\033[0m')
+        
+        standarded_rssis = []
+        for i, a_rssis in enumerate(avged_rssis):
+            stded_rssis = self.__standardize(a_rssis)
+            standarded_rssis.append(stded_rssis)
+            
+        train_rssis, train_label, test_rssis, test_label = [], [], [], []
+        for i, stded_rssis in enumerate(standarded_rssis):
+            train_r, train_l, test_r, test_l = self.__divide_data_train_rate(stded_rssis,
+                                                                             posture_classes[i],
+                                                                             train_rate)
+            train_rssis.append(train_r)
+            train_label.append(train_l)
+            test_rssis.append(test_r)
+            test_label.append(test_l)
+            
         return train_rssis, train_label, test_rssis, test_label
 
     def __load_csv(self):
@@ -77,14 +105,13 @@ class Reshaper:
             bed_data[i].append(c_0_d)
 
         for i, tester in enumerate(self.tester_name):
-            for cls_idx in range(1, self.class_num):
-                file_name = f'{self.csv_path}{tester}_{str(cls_idx)}.csv'
+            for cls_num in range(1, self.class_num):
+                file_name = f'{self.csv_path}{tester}_{str(cls_num)}.csv'
                 # CSVファイルから時間，タグ名，RSSI値を得る
                 raw_bed_data = pd.read_csv(file_name, header=None)[[1, 8, 10]]
                 raw_bed_data.columns = [u'time', u'tag', u'rssi']
                 bed_data[i].append(raw_bed_data)
 
-        print(type(bed_data[1][0]))
         return bed_data
 
     def __get_rssis(self, bed_data):
@@ -92,8 +119,8 @@ class Reshaper:
 
         Args:
             bed_data (list): センサーのRSSI値のデータ．
-                             bed_data[<被験者idx(クラス0は被験者なし)>]
-                                     [<姿勢のクラスidx>]
+                             bed_data[<被験者idx(姿勢クラス0は被験者なし)>]
+                                     [<姿勢クラス>]
                                      [<'time'or'tag'or'rssi'>]
                                      [<dataidx(idx>=1よりデータ部分)>]
 
@@ -148,13 +175,13 @@ class Reshaper:
 
         tester_num = len(self.tester_name)
         avged_rssis = [[] for _ in range(tester_num)]
-        rssi_classes = [[] for _ in range(tester_num)]
+        posture_classes = [[] for _ in range(tester_num)]
 
         def avg(li):
             return sum(li) / len(li)
 
         for tester, d in enumerate(rssis):
-            for cls_idx, data in enumerate(d):
+            for cls_num, data in enumerate(d):
                 # 先頭の平均値データの作成
                 rssi_block = [[] for _ in range(self.tag_num)]
                 avged_rssi = []
@@ -164,7 +191,7 @@ class Reshaper:
                     rssi_avg = avg(rssi_block[i])
                     avged_rssi.append(rssi_avg)
                 avged_rssis[tester].append(avged_rssi)
-                rssi_classes[tester].append(cls_idx)
+                posture_classes[tester].append(cls_num)
 
                 # それ以降の平均値データの作成
                 for rssi in data[self.data_num_perblock:]:
@@ -175,21 +202,25 @@ class Reshaper:
                         rssi_avg = avg(rssi_block[i])
                         avged_rssi.append(rssi_avg)
                     avged_rssis[tester].append(avged_rssi)
-                    rssi_classes[tester].append(cls_idx)
+                    posture_classes[tester].append(cls_num)
 
-        return avged_rssis, rssi_classes
+        return avged_rssis, posture_classes
     
     def __standardize(self, rssis):
-        rssi_all = []
-        for rssi in rssis:
-            rssi_all += rssi
+        if len(rssis) == len(self.tester_name):
+            rssi_all = []
+            for rssi in rssis:
+                rssi_all += rssi
+        else:
+            rssi_all = rssis
+    
         sc = preprocessing.StandardScaler()
         sc.fit(rssi_all)
         standarded_rssi = sc.transform(rssi_all)
         
         return standarded_rssi
     
-    def __divide_data_units_tester(self, avged_rssis, standarded_rssis, rssi_classes, train_count):
+    def __divide_data_units_tester(self, avged_rssis, standarded_rssis, posture_classes, train_count):
         avged_rssis_num = 0
         for rssi in avged_rssis[:train_count]:
             avged_rssis_num += len(rssi)
@@ -197,13 +228,48 @@ class Reshaper:
         train_rssis = standarded_rssis[:avged_rssis_num]
         
         train_label = []
-        for rssi in rssi_classes[:train_count]:
+        for rssi in posture_classes[:train_count]:
             train_label += rssi
             
         test_rssis = standarded_rssis[avged_rssis_num:]
             
         test_label = []
-        for cls in rssi_classes[train_count:]:
+        for cls in posture_classes[train_count:]:
             test_label += cls
             
         return train_rssis, train_label, test_rssis, test_label
+    
+    def __divide_data_train_rate(self, rssis, posture_classes, train_rate):
+        cls_start_idx = 0
+        prev_cls = 0    # 1回前のループでの姿勢クラス
+        train_rssis, train_label, test_rssis, test_label = None, [], None, []
+        for i, cls in enumerate(posture_classes):
+            if prev_cls == (self.class_num - 1):
+                train_start = cls_start_idx
+                train_end = cls_start_idx + int((len(rssis) - cls_start_idx) * train_rate)
+                test_start = train_end
+                test_end = len(rssis)
+                
+                train_rssis = np.concatenate([train_rssis, rssis[train_start:train_end]], axis=0)
+                test_rssis = np.concatenate([test_rssis, rssis[test_start:test_end]], axis=0)
+                train_label += posture_classes[train_start:train_end]
+                test_label += posture_classes[test_start:test_end]
+                break
+            if prev_cls != cls:
+                train_start = cls_start_idx
+                train_end = cls_start_idx + int((i - cls_start_idx) * train_rate)
+                test_start = train_end
+                test_end = i
+                if prev_cls == 0:
+                    train_rssis = rssis[train_start:train_end]
+                    test_rssis = rssis[test_start:test_end]
+                else:
+                    train_rssis = np.concatenate([train_rssis, rssis[train_start:train_end]], axis=0)
+                    test_rssis = np.concatenate([test_rssis, rssis[test_start:test_end]], axis=0)
+                train_label += posture_classes[train_start:train_end]
+                test_label += posture_classes[test_start:test_end]
+                cls_start_idx = i
+                prev_cls += 1
+
+        return train_rssis, train_label, test_rssis, test_label
+        
