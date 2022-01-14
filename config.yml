@@ -1,0 +1,10 @@
+# CSVファイルのパス
+csv_path          : ./csv/log1208/
+# データ整形時に平均値を取るデータの範囲
+data_range        : 50
+# K近傍法の近傍オブジェクト数
+knn_neighbors     : 3
+# 無反応のセンサーに対する代替のRSSI値
+no_reaction_rssi  : -105.0
+# 姿勢クラス数
+posture_class_num : 7
