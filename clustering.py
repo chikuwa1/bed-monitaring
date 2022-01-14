@@ -2,10 +2,10 @@ import sys
 import yaml
 
 from reshaper import Reshaper
-from sklearn.svm import LinearSVC
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import LinearSVC
 
 
 def main():
@@ -57,15 +57,12 @@ def main():
 
     # 学習
     clf_result.fit(rssis_train, train_label)
-
     # 予測
     pre = clf_result.predict(rssis_test)
-
     # Confusion Matrix出力
     print('---------- Confusion Matrix ----------')
     print(confusion_matrix(test_label, pre))
     print('--------------------------------------')
-
     # 正答率計算
     ac_score = accuracy_score(test_label, pre)
     print("正答率 =", ac_score)

@@ -57,15 +57,12 @@ def main():
     for i in range(len(train_rssis)):
         # 学習
         clf_result.fit(train_rssis[i], train_label[i])
-        
         # 予測
         pre = clf_result.predict(test_rssis[i])
-
         # Confusion Matrix出力
         print('---------- Confusion Matrix ----------')
         print(confusion_matrix(test_label[i], pre))
         print('--------------------------------------')
-
         # 正答率計算
         ac_score = accuracy_score(test_label[i], pre)
         avg_ac_score += ac_score
