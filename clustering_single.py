@@ -41,7 +41,7 @@ def main():
 
     reshaper = Reshaper(DATA_RANGE, NO_REACTION_RSSI,
                         CSV_PATH, testers, CLASS_NUM)
-    rssis_train, train_label, rssis_test, test_label = reshaper.get_learnable_single_train_data(train_rate)
+    train_rssis, train_label, test_rssis, test_label = reshaper.get_learnable_single_train_data(train_rate)
     
     # 手法の選択(コマンドライン引数によって決定)
     if method == 'svc':
@@ -57,12 +57,12 @@ def main():
         
     avg_ac_score = 0.0
 
-    for i in range(len(rssis_train)):
+    for i in range(len(train_rssis)):
         # 学習
-        clf_result.fit(rssis_train[i], train_label[i])
+        clf_result.fit(train_rssis[i], train_label[i])
         
         # 予測
-        pre = clf_result.predict(rssis_test[i])
+        pre = clf_result.predict(test_rssis[i])
         print('\033[32m'+'Done'+'\033[0m')
 
         # Confusion Matrix出力
