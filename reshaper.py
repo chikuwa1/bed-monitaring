@@ -1,6 +1,7 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn import preprocessing
+
 
 class Reshaper:
     """ベッドデータの機械学習のためのデータ整形クラス．
@@ -33,17 +34,10 @@ class Reshaper:
             list: 平均化したRSSI値
             list: avged_rssisに対応する姿勢クラス
         """
-        print('File loading...          ', end='')
         bed_data = self.__load_csv()
-        print('\033[32m'+'Done'+'\033[0m')
-
-        print('Data reshaping...        ', end='')
         rssis = self.__get_rssis(bed_data)
         avged_rssis, posture_classes = self.__take_block_rssi_avg(rssis)
-        print('\033[32m'+'Done'+'\033[0m')
-        
         standarded_rssis = self.__standardize(avged_rssis)
-
         train_rssis, train_label, test_rssis, test_label = self.__divide_data_units_tester(avged_rssis,
                                                                                            standarded_rssis,
                                                                                            posture_classes,
@@ -52,14 +46,9 @@ class Reshaper:
         return train_rssis, train_label, test_rssis, test_label
 
     def get_learnable_single_train_data(self, train_rate):
-        print('File loading...          ', end='')
         bed_data = self.__load_csv()
-        print('\033[32m'+'Done'+'\033[0m')
-
-        print('Data reshaping...        ', end='')
         rssis = self.__get_rssis(bed_data)
         avged_rssis, posture_classes = self.__take_block_rssi_avg(rssis)
-        print('\033[32m'+'Done'+'\033[0m')
         
         standarded_rssis = []
         for i, a_rssis in enumerate(avged_rssis):
