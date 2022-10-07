@@ -2,3 +2,4 @@ pyyaml
 sklearn
 pandas
 numpy
+matplotlib

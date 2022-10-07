@@ -2,10 +2,13 @@ import sys
 import yaml
 
 from reshaper import Reshaper
+import matplotlib.pyplot as plt
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import LinearSVC
+from itertools import combinations
+import subprocess
 
 
 def main():
@@ -54,7 +57,26 @@ def main():
         
     avg_ac_score = 0.0
 
+    
+
     for i in range(len(train_rssis)):
+        subprocess.run(['mkdir', f'/mnt/c/Users/chiaki/Desktop/{str(i)}/'])
+        moke = [[] for _ in range(posture_class_num)]
+        for data in train_rssis[i]:
+            for j, d in enumerate(data):
+                moke[j].append(d)
+        comb = list(combinations([i for i in range(6)], 2))
+        for c in comb:
+            plt.clf()
+            plt.close()
+            
+            plt.xlabel(str(c[0]), fontsize=18, loc="right")
+            plt.ylabel(str(c[1]), fontsize=18, loc="top")
+
+            # plt.scatter(moke[c[0]], moke[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm, label=train_label[i])
+            plt.scatter(moke[c[0]], moke[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm)
+            # plt.legend()            
+            plt.savefig(f"/mnt/c/Users/chiaki/Desktop/{str(i)}/result-{str(c[0])}-{str(c[1])}.png")
         # 学習
         clf_result.fit(train_rssis[i], train_label[i])
         # 予測

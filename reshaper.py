@@ -152,7 +152,6 @@ class Reshaper:
         def init_rssi():
             return [self.no_reaction_rssi for _ in range(self.tag_num)]
 
-        # 
         for tester_num, d in enumerate(bed_data):
             for cls_num, data in enumerate(d):
                 time = data["time"][1]
@@ -263,27 +262,31 @@ class Reshaper:
         prev_cls = 0    # 1回前のループでの姿勢クラス
         train_rssis, train_label, test_rssis, test_label = None, [], None, []
         for i, cls in enumerate(posture_classes):
-            train_start = cls_start_idx
-            test_start = train_end
-            if prev_cls == 0:
-                train_end = cls_start_idx + int((i - cls_start_idx) * train_rate)
-                test_end = i
-                train_rssis = rssis[train_start:train_end]
-                test_rssis = rssis[test_start:test_end]
-            elif prev_cls != cls:
-                train_end = cls_start_idx + int((i - cls_start_idx) * train_rate)
-                test_end = i
-                train_rssis = np.concatenate([train_rssis, rssis[train_start:train_end]], axis=0)
-                test_rssis = np.concatenate([test_rssis, rssis[test_start:test_end]], axis=0)
-            elif prev_cls == (self.class_num - 1):
+            if prev_cls == (self.class_num - 1):
+                train_start = cls_start_idx
                 train_end = cls_start_idx + int((len(rssis) - cls_start_idx) * train_rate)
+                test_start = train_end
                 test_end = len(rssis)
+                
                 train_rssis = np.concatenate([train_rssis, rssis[train_start:train_end]], axis=0)
                 test_rssis = np.concatenate([test_rssis, rssis[test_start:test_end]], axis=0)
+                train_label += posture_classes[train_start:train_end]
+                test_label += posture_classes[test_start:test_end]
                 break
-            train_label += posture_classes[train_start:train_end]
-            test_label += posture_classes[test_start:test_end]
-            cls_start_idx = i
-            prev_cls += 1
+            if prev_cls != cls:
+                train_start = cls_start_idx
+                train_end = cls_start_idx + int((i - cls_start_idx) * train_rate)
+                test_start = train_end
+                test_end = i
+                if prev_cls == 0:
+                    train_rssis = rssis[train_start:train_end]
+                    test_rssis = rssis[test_start:test_end]
+                else:
+                    train_rssis = np.concatenate([train_rssis, rssis[train_start:train_end]], axis=0)
+                    test_rssis = np.concatenate([test_rssis, rssis[test_start:test_end]], axis=0)
+                train_label += posture_classes[train_start:train_end]
+                test_label += posture_classes[test_start:test_end]
+                cls_start_idx = i
+                prev_cls += 1
 
         return train_rssis, train_label, test_rssis, test_label
