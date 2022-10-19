@@ -1,7 +1,5 @@
 import sys
 import yaml
-import os
-import shutil
 
 from reshaper import Reshaper
 import matplotlib.pyplot as plt
@@ -59,17 +57,8 @@ def main():
         
     avg_ac_score = 0.0
 
-    
-
     for i in range(len(train_rssis)):
-        dir_path_human = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/'
-        if not os.path.exists(dir_path_human):
-            os.mkdir(dir_path_human)
-            # subprocess.run(['mkdir', dir_path])
-        else:
-            shutil.rmtree(dir_path_human)
-            os.mkdir(dir_path_human)
-            # subprocess.run(['mkdir', dir_path])
+        subprocess.run(['mkdir', f'/mnt/c/Users/chiaki/Desktop/tester-{str(i)}/'])
         moke = [[] for _ in range(posture_class_num)]
         for data in train_rssis[i]:
             for j, d in enumerate(data):
@@ -81,17 +70,11 @@ def main():
             
             plt.xlabel(str(c[0]), fontsize=18, loc="right")
             plt.ylabel(str(c[1]), fontsize=18, loc="top")
-            
 
             # plt.scatter(moke[c[0]], moke[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm, label=train_label[i])
             plt.scatter(moke[c[0]], moke[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm)
-            # plt.legend() 
-            png_path = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/result-{str(c[0])}-{str(c[1])}.png'           
-            plt.savefig(png_path)
-
-        
-
-
+            # plt.legend()            
+            plt.savefig(f"/mnt/c/Users/chiaki/Desktop/tester-{str(i)}/result-{str(c[0])}-{str(c[1])}.png")
         # 学習
         clf_result.fit(train_rssis[i], train_label[i])
         # 予測

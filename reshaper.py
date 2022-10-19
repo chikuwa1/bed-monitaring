@@ -1,3 +1,4 @@
+from pprint import pprint
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
@@ -165,6 +166,8 @@ class Reshaper:
                     rssi[sensor_idx] = float(data["rssi"][i])
                 rssis[tester_num][cls_num].append(rssi)
 
+        # pprint(rssis[<被験者番号>][<姿勢クラス>])
+        print(len(rssis[0][2]))
         return rssis
 
     def __take_block_rssi_avg(self, rssis):
@@ -290,3 +293,8 @@ class Reshaper:
                 prev_cls += 1
 
         return train_rssis, train_label, test_rssis, test_label
+    
+    def get_rssis(self):
+        bed_data = self.__import_csv()
+        rssis = self.__extract_rssis(bed_data)
+        return rssis
