@@ -1,3 +1,5 @@
+# プログラムを理解するためにメモする用のダミープログラム
+
 import sys
 import yaml
 import os
@@ -22,11 +24,11 @@ def main():
     with open('config.yml') as yml:
         config = yaml.safe_load(yml)
 
-    csv_path = config['csv_path']
-    data_range = config['data_range']
-    knn_neighbors = config['knn_neighbors']
-    no_reaction_rssi = config['no_reaction_rssi']
-    posture_class_num = config['posture_class_num']
+    csv_path = config['csv_path']# CSVファイルのパス= ./csv/log1208/
+    data_range = config['data_range']# データ整形時に平均値を取るデータの範囲=50
+    knn_neighbors = config['knn_neighbors']# K近傍法の近傍オブジェクト数=3
+    no_reaction_rssi = config['no_reaction_rssi']# 無反応のセンサーに対する代替のRSSI値=-105.0
+    posture_class_num = config['posture_class_num']# 姿勢クラス数=7
     err_message = f'''usage: python clustering.py <clustering method> <train rate(0<rate<1)>
 
     available clustering method:
@@ -48,9 +50,13 @@ def main():
 
     reshaper = Reshaper(data_range, no_reaction_rssi,
                         csv_path, testers, posture_class_num)
+    # data_range=50, no_reaction_rssi=-105.0, csv_path=./csv/log1208/, posture_class_num=7 (48行目付近)
+    # tester_name は11名の名前が入ったリスト(39,83行目)
+    # これらをReshaperへ引き渡す
     train_rssis, train_label, test_rssis, test_label = reshaper.get_learnable_single_train_data(train_rate)
-    
-    # 手法の選択(コマンドライン引数によって決定)
+    # Reshaperのget_learnable_multi_train_data関数を用いて訓練用，テスト用のRSSIとラベルを代入
+
+    ## 手法の選択(コマンドライン引数によって決定)
     if method == 'svc':
         # ConvergenceWarningが出現する場合にはmax_iter=10000を追加する
         clf_result = LinearSVC(loss='hinge', random_state=0)
@@ -62,7 +68,7 @@ def main():
     avg_ac_score = 0.0
 
     #被験者ごとラベル
-    for i in range(len(train_rssis)):
+    for i in range(len(train_rssis)): # 11回繰り返されている
         dir_path_human = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/'
         if not os.path.exists(dir_path_human):
             os.mkdir(dir_path_human)
@@ -71,23 +77,24 @@ def main():
             shutil.rmtree(dir_path_human)
             os.mkdir(dir_path_human)
             # subprocess.run(['mkdir', dir_path])
-        posture_rssis = [[] for _ in range(posture_class_num)]
-        for data in train_rssis[i]:
-            for j, d in enumerate(data):
-                posture_rssis[j].append(d)
-        comb = list(combinations([i for i in range(6)], 2))
-        for c in comb:
+        posture_rssis = [[] for _ in range(posture_class_num)] # 姿勢クラス数=7 -> range(7)=0,1,2,3,4,5,6
+        # posture_rssis[7][?]の状態
+        for data in train_rssis[i]: # 11人分の訓練用RSSIを1人ずつdataに入れてる
+            for j, d in enumerate(data): # jには1から順に数値を，dにはdata（1人分のRSSI）が入る
+                posture_rssis[j].append(d) # １人分の姿勢クラスごとにRSSIを追加
+        label_comb = list(combinations([i for i in range(6)], 2)) # 0~5で２通りずつリストに追加 list[(0,1), (0,2), (0,3),...,(4,5)]の15個
+        for comb in label_comb:
             plt.clf()
             plt.close()
             
-            plt.xlabel(str(c[0]), fontsize=18, loc="right")
-            plt.ylabel(str(c[1]), fontsize=18, loc="top")
+            plt.xlabel(str(comb[0]), fontsize=18, loc="right")
+            plt.ylabel(str(comb[1]), fontsize=18, loc="top")
             
 
             # plt.scatter(posture_rssis[c[0]], posture_rssis[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm, label=train_label[i])
-            plt.scatter(posture_rssis[c[0]], posture_rssis[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm)
+            plt.scatter(posture_rssis[comb[0]], posture_rssis[comb[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm)
             # plt.legend() 
-            png_path = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/human{str(i)}-{str(c[0])}-{str(c[1])}.png'           
+            png_path = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/human{str(i)}-{str(comb[0])}-{str(comb[1])}.png'           
             plt.savefig(png_path)
 
     

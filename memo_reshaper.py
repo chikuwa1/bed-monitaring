@@ -8,6 +8,8 @@ TIME_IDX = 1
 TAG_IDX = 8
 RSSI_IDX = 10
 
+# この3つはリテラルが上のように決まっている
+
 
 class Reshaper:
     """ベッドデータの機械学習のためのデータ整形クラス．
@@ -16,28 +18,28 @@ class Reshaper:
     RSSI値の平均値を取得してそのデータに対応する姿勢クラスの両方を得ることである．
 
     Attributes:
-        data_num_perblock (int)      : RSSI値の平均を取るデータ数
-        no_reaction_rssi  (float)    : センサー無反応の時のRSSIの代替値
-        csv_path          (str)      : CSVファイルのパス
-        tester_name       (list)     : 被験者の名前
-        class_num         (int)      : 姿勢クラス数
-        tag_name          (set[str]) : センサータグの名前
+        data_num_perblock (int)      : RSSI値の平均を取るデータ数 = 50
+        no_reaction_rssi  (float)    : センサー無反応の時のRSSIの代替値 =-105.0
+        csv_path          (str)      : CSVファイルのパス = ./csv/log1208/
+        tester_name       (list)     : 被験者の名前 -> tester_name.txtに書いてる
+        class_num         (int)      : 姿勢クラス数 = 7
+        tag_name          (set[str]) : センサータグの名前 = E280116060000204AC6Axxxx(xが違う)
     """
 
     def __init__(self, data_num_perblock, no_reaction_rssi, csv_path,
                  tester_name, class_num):
-        self.data_num_perblock = data_num_perblock
-        self.no_reaction_rssi = no_reaction_rssi
-        self.csv_path = csv_path
-        self.tester_name = tester_name
-        self.class_num = class_num
+        self.data_num_perblock = data_num_perblock # RSSI値の平均を取るデータ数 = 50
+        self.no_reaction_rssi = no_reaction_rssi # センサー無反応の時のRSSIの代替値 =-105.0
+        self.csv_path = csv_path # CSVファイルのパス = ./csv/log1208/
+        self.tester_name = tester_name # tester_name.txtに書いてる
+        self.class_num = class_num # 姿勢クラス数 = 7
         self.tag_num = 6
 
     def get_learnable_multi_train_data(self, train_count):
         """複数人の CSV データから平均化した RSSI 値とそれに対応する姿勢クラスを得る
 
         Returns:
-            train_rssis (list): 訓練用 RSSI
+            train_rssis (list): 訓練用 RSSI  ->>今回はこいつが何か調べるぞ
             train_label (list): 訓練用ラベル
             test_rssis  (list): テスト用 RSSI
             test_label  (list): テスト用ラベル
@@ -91,34 +93,43 @@ class Reshaper:
                           [<dataidx(idx>=1よりデータ部分)>]
         """
 
-        tester_num = len(self.tester_name)
-        bed_data = [[] for _ in range(tester_num)]
-        file_name = f"{self.csv_path}zero.csv"
+        tester_num = len(self.tester_name) # tester_numは被験者の人数=11
+        bed_data = [[] for _ in range(tester_num)] # bed_data[11][?]
+        file_name = f"{self.csv_path}zero.csv" # ベッド上に誰もいないときのcsv
         # CSVファイルから時間，タグ名，RSSI値を得る
         raw_bed_data = pd.read_csv(file_name, header=None)[[TIME_IDX, TAG_IDX, RSSI_IDX]]
-
+        # pandas.DataFrameは二次元の表形式のデータ
+        # header=Noneでヘッダーなし(列名(上の方の名前)が表示されない)
+        # raw_bed_data はfile_nameのcsvから時間とタグ名とRSSI値が入る->[[TIME_IDX, TAG_IDX, RSSI_IDX]]は多くのインデックスの中からこれらを厳選するために記述必要
         zero_cls_data = []
-        element_num = len(raw_bed_data) // tester_num
+        element_num = len(raw_bed_data) // tester_num # CSVファイルからとったデータを11で割る(あまり切り捨て) element_num=2406?? 割る目的わからん
+        # もしかしたらベット上に誰もいない状態を11で割って，一人どれくらいずつのRSSI値を割り振るのかを表してる??
 
         for i in range(1, len(raw_bed_data), element_num):
-            data = raw_bed_data[i:(i+element_num)]
-            zero_cls_data.append(data.reset_index())
+            data = raw_bed_data[i:(i+element_num)] # dataにraw_bed_dataの11等分したものを順に入れている（dataは表データ）
+            zero_cls_data.append(data.reset_index()) 
+            # reset_index()で0から連番で設定する＋indexというカラムが追加される（つまりこの時にindex,time,tag,rssiという形のlistになる）
+            # listであるzero_cls_dataにはraw_bed_dataのインデックスが[1~,element+1~,...,len(raw_bed_data)-1-ele,emt_num～]の11個のcsvのデータが入っているってこと？
 
-        for i in range(len(zero_cls_data)):
-            zero_cls_data[i].columns = [u"index", u"time", u"tag", u"rssi"]
+        for i in range(len(zero_cls_data)): # len(zero_cls_data)=11？
+            zero_cls_data[i].columns = [u"index", u"time", u"tag", u"rssi"] # 列名(カラム名)の指定 index入れたらindexついてくるのか？
+            # u…Unicodeに変換する
 
         for i, c_0_d in enumerate(zero_cls_data):
-            bed_data[i].append(c_0_d)
+            bed_data[i].append(c_0_d) # bed_dataのiごとにzero_cls_dataのindex,time,tag,rssiを入れてる->iとindexは同じ数値なはず
 
-        for i, tester in enumerate(self.tester_name):
-            for cls_num in range(1, self.class_num):
-                file_name = f"{self.csv_path}{tester}_{str(cls_num)}.csv"
+        # bed_dataにはindex,time,tag,rssi（indexは0～10まで）が入っている
+
+        for i, tester in enumerate(self.tester_name): # 連番と被験者名をi,testerに入れる
+            for cls_num in range(1, self.class_num): # class_num は姿勢クラス数=7->　1～6までをcls_numに入れて繰り返す
+                file_name = f"{self.csv_path}{tester}_{str(cls_num)}.csv" # 被験者名_姿勢クラス.csvというすべてのファイルを見る
                 # CSVファイルから時間，タグ名，RSSI値を得る
-                raw_bed_data = pd.read_csv(file_name, header=None)[[TIME_IDX, TAG_IDX, RSSI_IDX]]
-                raw_bed_data.columns = [u"time", u"tag", u"rssi"]
-                bed_data[i].append(raw_bed_data)
+                raw_bed_data = pd.read_csv(file_name, header=None)[[TIME_IDX, TAG_IDX, RSSI_IDX]] # 上記同様，時間，タグ，RSSI値をraw_bed_dataに入れる
+                raw_bed_data.columns = [u"time", u"tag", u"rssi"] # これはインデックス名がない！！！なぜ故．→多分reset_indexしてないから
+                bed_data[i].append(raw_bed_data) # appendは追加の動き(上書きじゃないよ)
+                # イメージとしては[[zoroでのindex,time,tag,rssi], [(appendされた姿勢1の)time,tag,rssi], [(appendされた姿勢2の)time,tag,rssi],..., [(appendされた姿勢6の)time,tag,rssi]]
 
-        return bed_data
+        return bed_data # bed_data[i]にはtester i の姿勢クラス0~6ごとにtime,tag,rssiデータが入っていることになる(iは0～10)
 
     def __extract_rssis(self, bed_data):
         """ CSV ファイルから時間・タグ名・RSSI 値を抽出する
