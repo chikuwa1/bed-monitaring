@@ -48,8 +48,9 @@ def main():
 
     reshaper = Reshaper(data_range, no_reaction_rssi,
                         csv_path, testers, posture_class_num)
-    train_rssis, train_label, test_rssis, test_label = reshaper.get_learnable_single_train_data(train_rate)
-    
+    train_rssis, train_label, test_rssis, test_label = reshaper.get_learnable_single_train_data(
+        train_rate)
+
     # 手法の選択(コマンドライン引数によって決定)
     if method == 'svc':
         # ConvergenceWarningが出現する場合にはmax_iter=10000を追加する
@@ -58,39 +59,98 @@ def main():
         clf_result = SGDClassifier(loss="hinge")
     elif method == 'kneigh':
         clf_result = KNeighborsClassifier(n_neighbors=knn_neighbors)
-        
+
     avg_ac_score = 0.0
 
-    #被験者ごとラベル
-    for i in range(len(train_rssis)):
+    colors = ['r', 'g', 'b', 'y', 'c', 'm', 'k']
+    for i in range(posture_class_num):
+        dir_path_posture = f'/mnt/c/Users/chiaki/Desktop/posture{str(i)}/'
+        if not os.path.exists(dir_path_posture):
+            os.mkdir(dir_path_posture)
+        else:
+            shutil.rmtree(dir_path_posture)
+            os.mkdir(dir_path_posture)
+        human_rssis = [[] for _ in range(posture_class_num)]
+        
+
+    for i, data_per_human in enumerate(train_rssis):
         dir_path_human = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/'
         if not os.path.exists(dir_path_human):
             os.mkdir(dir_path_human)
-            # subprocess.run(['mkdir', dir_path])
         else:
             shutil.rmtree(dir_path_human)
             os.mkdir(dir_path_human)
-            # subprocess.run(['mkdir', dir_path])
-        posture_rssis = [[] for _ in range(posture_class_num)]
-        for data in train_rssis[i]:
+        posture_rssis = [[] for _ in range(6)]
+        for data in data_per_human:
             for j, d in enumerate(data):
                 posture_rssis[j].append(d)
         comb = list(combinations([i for i in range(6)], 2))
+        prev_label = 0
+        new_label_start_idx = 0
+        rssis_idx_per_label = []
+
+        for j, l in enumerate(train_label[i]):
+            if prev_label != l:
+                idx_range = (new_label_start_idx, j-1)
+                rssis_idx_per_label.append(idx_range)
+                prev_label = l
+                new_label_start_idx = j
+        idx_range = (new_label_start_idx, len(train_label[i]))
+        rssis_idx_per_label.append(idx_range)
+
+        print(rssis_idx_per_label)
+
         for c in comb:
             plt.clf()
             plt.close()
-            
+
             plt.xlabel(str(c[0]), fontsize=18, loc="right")
             plt.ylabel(str(c[1]), fontsize=18, loc="top")
-            
 
             # plt.scatter(posture_rssis[c[0]], posture_rssis[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm, label=train_label[i])
-            plt.scatter(posture_rssis[c[0]], posture_rssis[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm)
-            # plt.legend() 
-            png_path = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/human{str(i)}-{str(c[0])}-{str(c[1])}.png'           
-            plt.savefig(png_path)
+            # plt.scatter(posture_rssis[c[0]], posture_rssis[c[1]],
+            #             c=train_label[i], s=10, cmap=plt.cm.coolwarm)
 
-    
+            for j, ripl in enumerate(rssis_idx_per_label):
+                plt.scatter(posture_rssis[c[0]][ripl[0]:ripl[1]], posture_rssis[c[1]]
+                            [ripl[0]:ripl[1]], c=colors[j], marker='D', alpha=0.05, label=f'posture {j}')
+            # plt.legend()
+            plt.legend() # (7)凡例表示
+            png_path = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/human{str(i)}-{str(c[0])}-{str(c[1])}.png'
+            plt.savefig(png_path)
+        
+
+
+    # 被験者ごとラベル
+    # for i in range(len(train_rssis)):
+    #     dir_path_human = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/'
+    #     if not os.path.exists(dir_path_human):
+    #         os.mkdir(dir_path_human)
+    #         # subprocess.run(['mkdir', dir_path])
+    #     else:
+    #         shutil.rmtree(dir_path_human)
+    #         os.mkdir(dir_path_human)
+    #         # subprocess.run(['mkdir', dir_path])
+    #     posture_rssis = [[] for _ in range(posture_class_num)]
+    #     print(len(train_rssis[0][0]))
+    #     for data in train_rssis[i]:
+    #         for j, d in enumerate(data):
+    #             posture_rssis[j].append(d)
+    #     comb = list(combinations([i for i in range(6)], 2))
+    #     for c in comb:
+    #         plt.clf()
+    #         plt.close()
+
+    #         plt.xlabel(str(c[0]), fontsize=18, loc="right")
+    #         plt.ylabel(str(c[1]), fontsize=18, loc="top")
+
+    #         # plt.scatter(posture_rssis[c[0]], posture_rssis[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm, label=train_label[i])
+    #         plt.scatter(posture_rssis[c[0]], posture_rssis[c[1]],
+    #                     c=train_label[i], s=10, cmap=plt.cm.coolwarm)
+    #         # plt.legend()
+    #         png_path = f'/mnt/c/Users/chiaki/Desktop/human{str(i)}/human{str(i)}-{str(c[0])}-{str(c[1])}.png'
+    #         plt.savefig(png_path)
+
     # 姿勢ごとのラベル
 
     # pouse_data = [[[] for _ in range(posture_class_num)] for _ in range(len(testers))]
@@ -106,39 +166,37 @@ def main():
     #         shutil.rmtree(dir_path_posture)
     #         os.mkdir(dir_path_posture)
     #         #subprocess.run(['mkdir', f'/mnt/c/Users/chiaki/Desktop/posture{str(i)}/'])
-        
+
     #     moke = [[] for _ in range(len(testers))]
-    #     for j in range(len(testers)):  
+    #     for j in range(len(testers)):
     #         moke[j].append(posture_data[i][j])
     #     comb = list(combinations([i for i in range(6)], 2))
     #     for c in comb:
     #         plt.clf()
     #         plt.close()
-            
+
     #         plt.xlabel(str(c[0]), fontsize=18, loc="right")
     #         plt.ylabel(str(c[1]), fontsize=18, loc="top")
-            
 
     #         # plt.scatter(moke[c[0]], moke[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm, label=train_label[i])
     #         plt.scatter(moke[c[0]], moke[c[1]], c=train_label[i], s=10, cmap=plt.cm.coolwarm)
-    #         # plt.legend() 
-    #         png_path = f'/mnt/c/Users/chiaki/Desktop/posture{str(i)}/posture0-{str(c[0])}-{str(c[1])}.png'           
+    #         # plt.legend()
+    #         png_path = f'/mnt/c/Users/chiaki/Desktop/posture{str(i)}/posture0-{str(c[0])}-{str(c[1])}.png'
     #         plt.savefig(png_path)
 
+    # 学習
+    clf_result.fit(train_rssis[i], train_label[i])
+    # 予測
+    pre = clf_result.predict(test_rssis[i])
+    # Confusion Matrix出力
+    print('---------- Confusion Matrix ----------')
+    print(confusion_matrix(test_label[i], pre))
+    print('--------------------------------------')
+    # 正答率計算
+    ac_score = accuracy_score(test_label[i], pre)
+    avg_ac_score += ac_score
+    print('正答率 =', ac_score)
 
-        # 学習
-        clf_result.fit(train_rssis[i], train_label[i])
-        # 予測
-        pre = clf_result.predict(test_rssis[i])
-        # Confusion Matrix出力
-        print('---------- Confusion Matrix ----------')
-        print(confusion_matrix(test_label[i], pre))
-        print('--------------------------------------')
-        # 正答率計算
-        ac_score = accuracy_score(test_label[i], pre)
-        avg_ac_score += ac_score
-        print('正答率 =', ac_score)
-        
     print('平均正解率 =', avg_ac_score / len(testers))
 
 

@@ -275,8 +275,7 @@ class Reshaper:
                         avged_rssi.append(rssi_avg)
                     avged_rssis[tester].append(avged_rssi)  # 平均値をappend
                     # 最終的にavged_rssis[被験者][姿勢0の50データ分平均rssi値,姿勢0の50データごとの平均rssi値,... 姿勢1の時,....,姿勢6の時,姿勢6の時]
-                    posture_classes[tester].append(
-                        cls_num)  # 平均値に対する姿勢クラスをappend
+                    posture_classes[tester].append(cls_num)  # 平均値に対する姿勢クラスをappend
                     # 最終的にはposture_classes[被験者][0,0,...,1,...,6,6]のようになる?
 
         return avged_rssis, posture_classes
